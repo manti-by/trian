@@ -10,7 +10,11 @@ class Shape:
 
     def __init__(self, points: list[Point]):
         self.points = points
-        self.polygon = Polygon(self.points)
+        self.polygon = Polygon(points)
+
+    @property
+    def area(self) -> int:
+        return self.polygon.area
 
     def draw(self, canvas: tk.Canvas):
         canvas.create_polygon(

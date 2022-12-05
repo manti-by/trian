@@ -8,8 +8,9 @@ from trian.processor import Processor
 
 class App:
 
-    wire_size = 2
+    wire_size = 4
     mat_size = 50
+    precision = 2
 
     def __init__(self, points: list[Point], socket: Point) -> None:
         self.window = None
@@ -17,12 +18,17 @@ class App:
         self.room = None
         self.result = None
 
+        self.redraw_button = None
+        self.wire_size_input = None
+        self.mat_size_input = None
+        self.precision_input = None
+        self.result_label = None
+
         self.points = points
         self.socket = socket
 
         self.create_window()
         self.draw_room()
-        self.draw_tiles()
 
         if self.window is not None:
             self.window.mainloop()
@@ -30,10 +36,42 @@ class App:
     def create_window(self):
         self.window = tk.Tk()
         self.window.title("Canvas")
-        self.window.geometry("800x600")
+        self.window.geometry("700x700")
 
-        self.canvas = tk.Canvas(self.window, width=800, height=600)
-        self.canvas.pack()
+        self.canvas = tk.Canvas(self.window, width=700, height=600)
+        self.canvas.grid(row=0, column=0, sticky=tk.W, pady=2, columnspan=3)
+
+        label = tk.Label(self.window, text="Wire size")
+        label.grid(row=1, column=0, sticky=tk.W, pady=2)
+
+        self.wire_size_input = tk.Entry(self.window)
+        self.wire_size_input.insert(0, str(self.wire_size))
+        self.wire_size_input.grid(row=2, column=0, sticky=tk.W, pady=2)
+
+        label = tk.Label(self.window, text="Mat size")
+        label.grid(row=1, column=1, sticky=tk.W, pady=2)
+
+        self.mat_size_input = tk.Entry(self.window)
+        self.mat_size_input.insert(0, str(self.mat_size))
+        self.mat_size_input.grid(row=2, column=1, sticky=tk.W, pady=2)
+
+        label = tk.Label(self.window, text="Precision")
+        label.grid(row=1, column=2, sticky=tk.W, pady=2)
+
+        self.precision_input = tk.Entry(self.window)
+        self.precision_input.insert(0, str(self.precision))
+        self.precision_input.grid(row=2, column=2, sticky=tk.W, pady=2)
+
+        self.redraw_button = tk.Button(self.window, text="Calculate", command=self.draw)
+        self.redraw_button.grid(row=3, column=2, sticky=tk.W, pady=2)
+
+        self.result_label = tk.Label(self.window, text="")
+        self.result_label.grid(row=3, column=0, sticky=tk.W, pady=2)
+
+    def draw(self):
+        self.canvas.delete("all")
+        self.draw_room()
+        self.draw_tiles()
 
     def draw_room(self):
         # Room walls
@@ -52,8 +90,14 @@ class App:
 
     def draw_tiles(self):
         processor = Processor(
-            points=self.points, wire_size=self.wire_size, mat_size=self.mat_size
+            points=self.points,
+            wire_size=int(self.wire_size_input.get()),
+            mat_size=int(self.mat_size_input.get()),
+            precision=int(self.precision_input.get()),
         )
-        self.result = processor.calculate()
-        for shape in self.result:
+        total_area = 0
+        for shape in processor.calculate():
             shape.draw(canvas=self.canvas)
+            total_area += shape.area
+        result = f"Fill size: {total_area / self.room.area:.2f}"
+        self.result_label.config(text=result)

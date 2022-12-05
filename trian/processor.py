@@ -1,4 +1,5 @@
 from collections import defaultdict
+from typing import Iterable
 
 from shapely.geometry import Point, Polygon
 
@@ -13,15 +14,13 @@ class Processor:
     FREE = "F"
     NULL = "N"
 
-    precision = 10
-
-    def __init__(self, points: list[Point], wire_size: int, mat_size: int):
-        self.result = []
+    def __init__(self, points: list[Point], wire_size: int, mat_size: int, precision: int):
         self.points = points
         self.polygon = Polygon(self.points)
 
         self.wire_size = wire_size
         self.mat_size = mat_size
+        self.precision = precision
 
         self.min_x, self.max_x = None, None
         self.min_y, self.max_y = None, None
@@ -40,13 +39,13 @@ class Processor:
 
     def generate_field(self):
         self.field = defaultdict(lambda: defaultdict(str))
-        for x in range(self.min_x, self.max_x):
-            for y in range(self.min_y, self.max_y):
+        for x in range(self.min_x, self.max_x, self.precision):
+            for y in range(self.min_y, self.max_y, self.precision):
                 self.field[x][y] = self.FREE if self.polygon.contains(Point(x, y)) else self.NULL
 
     def is_shape_can_be_added(self, shape: Mat | Wire) -> bool:
         for point in shape.points:
-            if self.field[point.x][point.y] not in (self.FREE, self.EDGE):
+            if self.field[point.x][point.y] not in (self.FREE,):
                 return False
         return True
 
@@ -58,9 +57,9 @@ class Processor:
                 ))
                 self.field[r_x][r_y] = self.EDGE if is_edge_location else self.BODY
 
-    def calculate(self) -> list[Shape]:
-        for y in range(self.min_y, self.max_y, self.precision):
-            for x in range(self.min_x, self.max_x, self.precision):
+    def calculate(self) -> Iterable[Shape]:
+        for x in range(self.min_x, self.max_x, self.precision):
+            for y in range(self.min_y, self.max_y, self.precision):
                 if not self.field[x][y] or self.field[x][y] == self.NULL:
                     continue
                 mat = Mat(
@@ -72,7 +71,19 @@ class Processor:
                     ]
                 )
                 if self.is_shape_can_be_added(shape=mat):
-                    self.result.append(mat)
                     self.update_field(x, y, self.mat_size)
+                    yield mat
                     continue
-        return self.result
+
+                wire = Wire(
+                    points=[
+                        Point(x, y),
+                        Point(x + self.wire_size, y),
+                        Point(x + self.wire_size, y + self.wire_size),
+                        Point(x, y + self.wire_size),
+                    ]
+                )
+                if self.is_shape_can_be_added(shape=wire):
+                    self.update_field(x, y, self.wire_size)
+                    yield wire
+                    continue
