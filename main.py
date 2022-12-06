@@ -1,6 +1,10 @@
+import logging
+
 from shapely.geometry import Point
 
 from trian.app import App
+
+logging.basicConfig(level=logging.INFO)
 
 
 if __name__ == "__main__":
