@@ -14,6 +14,7 @@ class App:
     precision = 2
 
     def __init__(self, points: list[Point], socket: Point) -> None:
+        self.root = None
         self.window = None
         self.canvas = None
         self.room = None
@@ -26,6 +27,8 @@ class App:
         self.precision_input = None
         self.flip_xy = None
         self.flip_xy_choice = None
+        self.reverse = None
+        self.reverse_choice = None
         self.result_label = None
 
         self.points = points
@@ -38,11 +41,14 @@ class App:
             self.window.mainloop()
 
     def create_window(self):
-        self.window = tk.Tk()
-        self.window.title("Canvas")
-        self.window.geometry("850x750")
+        self.root = tk.Tk()
+        self.root.title("Canvas")
+        self.root.geometry("800x750")
 
-        self.canvas = tk.Canvas(self.window, width=700, height=600)
+        self.window = tk.Frame(self.root)
+        self.window.grid(padx=7, pady=7)
+
+        self.canvas = tk.Canvas(self.window, width=780, height=580, background="white")
         self.canvas.grid(row=0, column=0, sticky=tk.W, padx=2, pady=2, columnspan=3)
 
         label = tk.Label(self.window, text="Wire size")
@@ -76,18 +82,30 @@ class App:
         self.flip_xy = tk.BooleanVar()
         self.flip_xy_choice = tk.Checkbutton(
             self.window,
-            text="Flip XY",
+            text="Flip XY (Not implemented)",
             variable=self.flip_xy,
             onvalue=True,
             offvalue=False,
+            state="disabled",
         )
-        self.flip_xy_choice.grid(row=4, column=1, sticky=tk.W, padx=2, pady=2)
+        self.flip_xy_choice.grid(row=4, column=1, sticky=tk.W, padx=0, pady=2)
+
+        self.reverse = tk.BooleanVar()
+        self.reverse_choice = tk.Checkbutton(
+            self.window,
+            text="Reverse (Not implemented)",
+            variable=self.reverse,
+            onvalue=True,
+            offvalue=False,
+            state="disabled",
+        )
+        self.reverse_choice.grid(row=4, column=2, sticky=tk.W, padx=0, pady=2)
 
         self.redraw_button = tk.Button(self.window, text="Calculate", command=self.draw)
-        self.redraw_button.grid(row=5, column=0, sticky=tk.W, padx=2, pady=2)
+        self.redraw_button.grid(row=5, column=0, sticky=tk.W, padx=0, pady=5)
 
         self.result_label = tk.Label(self.window, text="")
-        self.result_label.grid(row=5, column=1, sticky=tk.W, padx=2, pady=2)
+        self.result_label.grid(row=5, column=1, sticky=tk.W, padx=2, pady=5)
 
     def draw(self):
         self.canvas.delete("all")
@@ -110,23 +128,21 @@ class App:
         )
 
     def draw_tiles(self):
-        mat_width = int(self.mat_width_input.get())
-        mat_height = int(self.mat_height_input.get())
-        if self.flip_xy.get():
-            mat_height = int(self.mat_width_input.get())
-            mat_width = int(self.mat_height_input.get())
         processor = Processor(
             points=self.points,
-            mat_width=mat_width,
-            mat_height=mat_height,
+            mat_width=int(self.mat_width_input.get()),
+            mat_height=int(self.mat_height_input.get()),
             wire_size=int(self.wire_size_input.get()),
             precision=int(self.precision_input.get()),
             flip_xy=self.flip_xy.get(),
         )
+
         total_area = 0
         for shape in processor.calculate():
             shape.draw(canvas=self.canvas)
             self.window.update()
             total_area += shape.area
-        result = f"Fill size: {total_area / self.room.area:.2f}"
+
+        ratio = total_area / self.room.area * 100
+        result = f"Fill ratio: {ratio:.2f}%"
         self.result_label.config(text=result)

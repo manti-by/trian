@@ -1,5 +1,6 @@
 import logging
 from collections import defaultdict
+
 from typing import Iterable
 
 from shapely.geometry import Point, Polygon
@@ -19,6 +20,9 @@ class Processor:
 
     FORWARD = "FORWARD"
     BACKWARD = "BACKWARD"
+
+    HORIZONTAL = "HORIZONTAL"
+    VERTICAL = "VERTICAL"
 
     def __init__(
         self,
@@ -42,12 +46,12 @@ class Processor:
         self.min_y, self.max_y = None, None
         self.calculate_bounds()
 
-        self.prev_x, self.prev_y = self.min_x, self.min_y
-        self.direction_x, self.direction_y = self.FORWARD, self.FORWARD
-        self.is_mat_added, self.is_wire_added = False, False
-
         self.field = None
         self.generate_field()
+
+        self.prev_x, self.prev_y = None, None
+        self.direction_x, self.direction_y = self.FORWARD, self.FORWARD
+        self.current_direction = self.HORIZONTAL
 
     def calculate_bounds(self):
         self.min_x, self.max_x = int(min(p.x for p in self.points)), int(
@@ -65,6 +69,15 @@ class Processor:
                     self.FREE if self.polygon.contains(Point(x, y)) else self.NULL
                 )
 
+    def choose_start_point(self) -> Point:
+        # Initial position is the closes position to top/left corner
+        # TODO: Update to the socket position
+        start_point = self.points[0]
+        for point in self.points:
+            if point.x <= start_point.x and point.y <= start_point.y:
+                start_point = point
+        return start_point
+
     def is_shape_can_be_added(self, shape: Mat | Wire) -> bool:
         for point in shape.points:
             if self.field[point.x][point.y] not in (self.FREE,):
@@ -78,42 +91,113 @@ class Processor:
                     (r_x == x, r_x == x + width, r_y == y, r_y == y + height)
                 )
                 self.field[r_x][r_y] = self.EDGE if is_edge_location else self.BODY
-        self.prev_x, self.prev_y = x + width, y
 
-    def choose_next_position(self):
-        if self.prev_x < self.max_x - self.precision:
-            self.prev_x += self.precision if self.direction_x == self.FORWARD else -1 * self.precision
+    @property
+    def is_horizontal_direction(self) -> bool:
+        return self.current_direction == self.HORIZONTAL
 
+    @property
+    def is_forward_x(self) -> bool:
+        return self.direction_x == self.FORWARD
+
+    @property
+    def is_forward_y(self) -> bool:
+        return self.direction_y == self.FORWARD
+
+    def choose_next_position(self) -> tuple[int, int]:
+        if self.prev_x is None and self.prev_y is None:
+            point = self.choose_start_point()
+            self.prev_x = int(point.x) + self.precision
+            self.prev_y = int(point.y) + self.precision
+            return self.prev_x, self.prev_y
+
+        if self.is_horizontal_direction:
+            # Forward horizontal rules
+            if self.is_forward_x:
+                # Check room bounds (fast)
+                # Then try to restrict moving outside the room
+                if (
+                    self.prev_x < self.max_x - self.precision and
+                    self.field[self.prev_x + self.precision][self.prev_y] != self.NULL
+                ):
+                    self.prev_x += self.precision
+                # if there is no horizontal way then move vertically
+                else:
+                    self.direction_x = self.BACKWARD
+                    self.current_direction = self.VERTICAL
+            else:
+                # Backward move direction
+                if (
+                    self.prev_x > self.min_x + self.precision and
+                    self.field[self.prev_x - self.precision][self.prev_y] != self.NULL
+                ):
+                    self.prev_x -= self.precision
+                else:
+                    self.direction_x = self.FORWARD
+                    self.current_direction = self.VERTICAL
+
+        # The same rules but for vertical direction
         else:
-            self.prev_x = self.min_x
-            self.prev_y += self.precision if self.direction_y == self.FORWARD else -1 * self.precision
+            if self.is_forward_y:
+                if (
+                    self.prev_y < self.max_y - self.precision and
+                    self.field[self.prev_x][self.prev_y + self.precision] != self.NULL
+                ):
+                    self.prev_y += self.precision
+                else:
+                    self.current_direction = self.HORIZONTAL
+            else:
+                if (
+                    self.prev_y > self.min_y + self.precision and
+                    self.field[self.prev_x][self.prev_y - self.precision] != self.NULL
+                ):
+                    self.prev_y -= self.precision
+                else:
+                    self.current_direction = self.HORIZONTAL
 
         return self.prev_x, self.prev_y
 
     def calculate(self) -> Iterable[Shape]:
+        is_loop = 0
+        loop_x, loop_y = None, None
         iterations = (self.max_y - self.min_y) * (self.max_x - self.min_x)
         while iterations:
             iterations -= 1
             x, y = self.choose_next_position()
             logger.info(f"{x}, {y}")
 
-            self.is_mat_added = False
-            self.is_wire_added = False
-            if not self.field[x][y] or self.field[x][y] == self.NULL:
-                self.prev_x, self.prev_y = x, y
+            # Try to detect a loop
+            if loop_x == x and loop_y == y:
+                is_loop += 1
+                if is_loop > 10:
+                    break
+            loop_x, loop_y = x, y
+
+            # Skip already filled positions
+            if self.field[x][y] != self.FREE:
                 continue
+
+            # Flip shape if direction is backward
+            flip_x = 1 if self.is_forward_x else -1
 
             mat = Mat(
                 points=[
                     Point(x, y),
-                    Point(x + self.mat_width, y),
-                    Point(x + self.mat_width, y + self.mat_height),
+                    Point(x + self.mat_width * flip_x, y),
+                    Point(x + self.mat_width * flip_x, y + self.mat_height),
                     Point(x, y + self.mat_height),
                 ]
             )
+            # Try to insert a mat
             if self.is_shape_can_be_added(shape=mat):
-                self.update_field(x, y, self.mat_width, self.mat_height)
-                self.is_mat_added = True
+                self.current_direction = self.HORIZONTAL
+                if flip_x == -1:
+                    self.direction_x = self.BACKWARD
+                    self.update_field(x - self.mat_width, y, self.mat_width, self.mat_height)
+                else:
+                    self.direction_x = self.FORWARD
+                    self.update_field(x, y, self.mat_width, self.mat_height)
+                logger.info("Add mat")
                 yield mat
                 continue
 
@@ -125,8 +209,11 @@ class Processor:
                     Point(x, y + self.wire_size),
                 ]
             )
+            # Otherwise try to insert a wire
             if self.is_shape_can_be_added(shape=wire):
                 self.update_field(x, y, self.wire_size, self.wire_size)
-                self.is_wire_added = True
+                self.current_direction = self.VERTICAL
+                self.direction_x = self.BACKWARD
+                logger.info("Add wire")
                 yield wire
                 continue
