@@ -1,0 +1,27 @@
+{
+	"room_points": [740, 302, 740, 560, 1260, 560, 1260, 120, 999, 120, 999, 302],
+	"room_shift": {
+		"x": 0,
+		"y": 0
+	},
+	"room_heated_area": 17.42,
+	"floor1": 6,
+	"spots": [{
+		"spot_point": [0, -2, 0, 60, 121, 60, 121, -2],
+		"spot_area": 0.75,
+		"spot_shift": {
+			"x": 1065,
+			"y": 430
+		},
+		"type": 1
+	}],
+	"thermostats": [{
+		"coord": {
+			"x": 822,
+			"y": 302,
+			"id": "462dcb66-47a1-4563-8999-2df3912374b4"
+		}
+	}],
+	"pixels_per_meter": 100,
+	"new_algorithm": false
+}

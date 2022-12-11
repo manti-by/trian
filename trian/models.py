@@ -16,6 +16,10 @@ class Shape:
     def area(self) -> int:
         return self.polygon.area
 
+    @property
+    def length(self) -> int:
+        return self.polygon.bounds[2] - self.polygon.bounds[0]
+
     def draw(self, canvas: tk.Canvas):
         canvas.create_polygon(
             [(p.x, p.y) for p in self.points],
@@ -33,5 +37,5 @@ class Mat(Shape):
 
 class Wire(Shape):
     fill = "red"
-    outline = "black"
+    outline = "red"
     width = "1"

@@ -10,7 +10,7 @@ from trian.models import Mat, Shape, Wire
 logger = logging.getLogger(__name__)
 
 
-class Processor:
+class Generator:
 
     EDGE = "EDGE"
     BODY = "BODY"
@@ -27,20 +27,20 @@ class Processor:
     def __init__(
         self,
         points: list[Point],
-        wire_size: int,
         mat_width: int,
         mat_height: int,
+        wire_width: int,
+        wire_height: int,
         precision: int,
-        flip_xy: bool,
     ):
         self.points = points
         self.polygon = Polygon(self.points)
 
-        self.wire_size = wire_size
         self.mat_height = mat_height
         self.mat_width = mat_width
+        self.wire_width = wire_width
+        self.wire_height = wire_height
         self.precision = precision
-        self.flip_xy = flip_xy
 
         self.min_x, self.max_x = None, None
         self.min_y, self.max_y = None, None
@@ -177,7 +177,7 @@ class Processor:
             if self.field[x][y] != self.FREE:
                 continue
 
-            # Flip shape if direction is backward
+            # Flip shape if direction is changed
             flip_x = 1 if self.is_forward_x else -1
 
             mat = Mat(
@@ -204,16 +204,16 @@ class Processor:
             wire = Wire(
                 points=[
                     Point(x, y),
-                    Point(x + self.wire_size, y),
-                    Point(x + self.wire_size, y + self.wire_size),
-                    Point(x, y + self.wire_size),
+                    Point(x + self.wire_width, y),
+                    Point(x + self.wire_width, y + self.wire_height),
+                    Point(x, y + self.wire_height),
                 ]
             )
             # Otherwise try to insert a wire
             if self.is_shape_can_be_added(shape=wire):
-                self.update_field(x, y, self.wire_size, self.wire_size)
+                self.update_field(x, y, self.wire_width, self.wire_height)
                 self.current_direction = self.VERTICAL
-                self.direction_x = self.BACKWARD
+                self.direction_x = self.BACKWARD if self.is_forward_x else self.FORWARD
                 logger.info("Add wire")
                 yield wire
                 continue
