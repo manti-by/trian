@@ -141,22 +141,26 @@ class App:
         )
 
     def draw_tiles(self):
-        generator = Generator(
-            points=self.points,
-            mat_width=int(self.mat_width_input.get()),
-            mat_height=int(self.mat_height_input.get()),
-            wire_width=int(self.wire_width_input.get()),
-            wire_height=int(self.wire_height_input.get()),
-            precision=int(self.precision_input.get()),
-        )
-
+        field = None
         total_area = 0
         total_length = 0
-        for shape in generator.calculate():
-            shape.draw(canvas=self.canvas)
-            self.window.update()
-            total_area += shape.area
-            total_length += int(shape.length)
+        for _ in range(3):  # Up to 3 mats per room
+            generator = Generator(
+                socket=self.socket,
+                points=self.points,
+                mat_width=int(self.mat_width_input.get()),
+                mat_height=int(self.mat_height_input.get()),
+                wire_width=int(self.wire_width_input.get()),
+                wire_height=int(self.wire_height_input.get()),
+                precision=int(self.precision_input.get()),
+                field=field,
+            )
+            for shape in generator.calculate():
+                shape.draw(canvas=self.canvas)
+                self.window.update()
+                total_area += shape.area
+                total_length += int(shape.length)
+            field = generator.field
 
         ratio = total_area / self.room.area * 100
         result = f"Fill ratio: {ratio:.2f}%, length: {total_length / 100:.2f}m"
