@@ -18,4 +18,5 @@ if __name__ == "__main__":
         Point(370, 220),
     ]
     socket = Point(150, 220)
+    # socket = Point(670, 220)
     app = App(points=points, socket=socket)

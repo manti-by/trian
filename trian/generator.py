@@ -33,6 +33,9 @@ class Generator:
         wire_width: int,
         wire_height: int,
         precision: int,
+        reverse_x: bool,
+        reverse_y: bool,
+        prioritize_y: bool,
         field: dict[int, dict[int, str]] = None,
     ):
         """Init the class with values from the UI."""
@@ -46,16 +49,17 @@ class Generator:
         self.wire_height = wire_height
         self.precision = precision
 
-        self.min_x, self.max_x = None, None
-        self.min_y, self.max_y = None, None
-        self.calculate_bounds()
+        self.min_x, self.max_x, self.min_y, self.max_y = self.get_points_bounds(
+            points=self.points
+        )
 
         self.field = field
         self.generate_field()
 
         self.prev_x, self.prev_y = None, None
-        self.direction_x, self.direction_y = self.FORWARD, self.FORWARD
-        self.current_direction = self.HORIZONTAL
+        self.direction_x = self.BACKWARD if reverse_x else self.FORWARD
+        self.direction_y = self.BACKWARD if reverse_y else self.FORWARD
+        self.current_direction = self.VERTICAL if prioritize_y else self.HORIZONTAL
 
     @property
     def is_horizontal_direction(self) -> bool:
@@ -73,13 +77,17 @@ class Generator:
     def is_forward_y(self) -> bool:
         return self.direction_y == self.FORWARD
 
-    def calculate_bounds(self):
+    @staticmethod
+    def get_points_bounds(points: list[Point]) -> tuple[int, int, int, int]:
         """Calculate the polygon bounding edges."""
-        self.min_x, self.max_x = int(min(p.x for p in self.points)), int(
-            max(p.x for p in self.points)
-        )
-        self.min_y, self.max_y = int(min(p.y for p in self.points)), int(
-            max(p.y for p in self.points)
+        min_x, max_x = int(min(p.x for p in points)), int(max(p.x for p in points))
+        min_y, max_y = int(min(p.y for p in points)), int(max(p.y for p in points))
+        return min_x, max_x, min_y, max_y
+
+    def calculate_field_bounds(self):
+        """Calculate the polygon bounding edges."""
+        self.min_x, self.max_x, self.min_y, self.max_y = self.get_points_bounds(
+            points=self.points
         )
 
     def generate_field(self):
@@ -98,12 +106,14 @@ class Generator:
         closest_distance = point.distance(closest_vertex)
         for p in self.points[1:]:
             # Check a free point around current vertex
-            is_field_cell_free = any((
-                self.field[p.x + self.precision][p.y + self.precision] == self.FREE,
-                self.field[p.x + self.precision][p.y - self.precision] == self.FREE,
-                self.field[p.x - self.precision][p.y + self.precision] == self.FREE,
-                self.field[p.x - self.precision][p.y - self.precision] == self.FREE,
-            ))
+            is_field_cell_free = any(
+                (
+                    self.field[p.x + self.precision][p.y + self.precision] == self.FREE,
+                    self.field[p.x + self.precision][p.y - self.precision] == self.FREE,
+                    self.field[p.x - self.precision][p.y + self.precision] == self.FREE,
+                    self.field[p.x - self.precision][p.y - self.precision] == self.FREE,
+                )
+            )
             current_distance = point.distance(p)
             if current_distance < closest_distance and is_field_cell_free:
                 closest_vertex = p
@@ -122,19 +132,20 @@ class Generator:
                 start_point = point
         return start_point
 
-    def is_shape_can_be_added(self, shape: Mat | Wire) -> bool:
-        """All shape points should be free in the field."""
-        for point in shape.points:
+    def is_shape_can_be_added(self, points: list[Point]) -> bool:
+        """All points should be free in the field."""
+        for point in points:
             if self.field[point.x][point.y] not in (self.FREE,):
                 return False
         return True
 
-    def update_field(self, x: int, y: int, width: int, height: int):
+    def update_field(self, points: list[Point]):
         """Fill in all points are covered by a new shape."""
-        for r_x in range(x, x + width):
-            for r_y in range(y, y + height):
+        min_x, max_x, min_y, max_y = self.get_points_bounds(points=points)
+        for r_x in range(min_x, max_x):
+            for r_y in range(min_y, max_y):
                 is_edge_location = any(
-                    (r_x == x, r_x == x + width, r_y == y, r_y == y + height)
+                    (r_x == min_x, r_x == max_x, r_y == min_y, r_y == max_y)
                 )
                 self.field[r_x][r_y] = self.EDGE if is_edge_location else self.BODY
 
@@ -144,9 +155,8 @@ class Generator:
             # Check room bounds (fast)
             # Then try to restrict moving outside the room
             if (
-                    self.prev_x < self.max_x - self.precision
-                    and self.field[self.prev_x + self.precision][self.prev_y]
-                    != self.NULL
+                self.prev_x < self.max_x - self.precision
+                and self.field[self.prev_x + self.precision][self.prev_y] != self.NULL
             ):
                 self.prev_x += self.precision
             # if there is no horizontal way then move vertically
@@ -155,9 +165,8 @@ class Generator:
                 self.current_direction = self.VERTICAL
         else:  # Backward
             if (
-                    self.prev_x > self.min_x + self.precision
-                    and self.field[self.prev_x - self.precision][self.prev_y]
-                    != self.NULL
+                self.prev_x > self.min_x + self.precision
+                and self.field[self.prev_x - self.precision][self.prev_y] != self.NULL
             ):
                 self.prev_x -= self.precision
             else:
@@ -169,18 +178,16 @@ class Generator:
         """Vertical direction rules."""
         if self.is_forward_y:
             if (
-                    self.prev_y < self.max_y - self.precision
-                    and self.field[self.prev_x][self.prev_y + self.precision]
-                    != self.NULL
+                self.prev_y < self.max_y - self.precision
+                and self.field[self.prev_x][self.prev_y + self.precision] != self.NULL
             ):
                 self.prev_y += self.precision
             else:
                 self.current_direction = self.HORIZONTAL
         else:
             if (
-                    self.prev_y > self.min_y + self.precision
-                    and self.field[self.prev_x][self.prev_y - self.precision]
-                    != self.NULL
+                self.prev_y > self.min_y + self.precision
+                and self.field[self.prev_x][self.prev_y - self.precision] != self.NULL
             ):
                 self.prev_y -= self.precision
             else:
@@ -201,6 +208,23 @@ class Generator:
             self.prev_y = self.choose_next_y()
 
         return self.prev_x, self.prev_y
+
+    def get_shape_points(
+        self, x: int, y: int, width: int, height: int
+    ) -> list[Point, Point, Point, Point]:
+        """Flip shape if direction is changed."""
+        flip_x = 1 if self.is_forward_x else -1
+        flip_y = 1 if self.is_forward_y else -1
+
+        offset_x = 0 if self.is_forward_x else -1 * self.precision
+        offset_y = 0 if self.is_forward_y else -1 * self.precision
+
+        return [
+            Point(x + offset_x, y + offset_y),
+            Point(x + offset_x + width * flip_x, y + offset_y),
+            Point(x + offset_x + width * flip_x, y + offset_y + height * flip_y),
+            Point(x + offset_x, y + offset_y + height * flip_y),
+        ]
 
     def calculate(self) -> Iterable[Shape]:
         """Find out shapes that can cover provided polygon."""
@@ -223,45 +247,24 @@ class Generator:
             if self.field[x][y] != self.FREE:
                 continue
 
-            # Flip shape if direction is changed
-            flip_x = 1 if self.is_forward_x else -1
-
-            mat = Mat(
-                points=[
-                    Point(x, y),
-                    Point(x + self.mat_width * flip_x, y),
-                    Point(x + self.mat_width * flip_x, y + self.mat_height),
-                    Point(x, y + self.mat_height),
-                ]
-            )
             # Try to insert a mat
-            if self.is_shape_can_be_added(shape=mat):
+            points = self.get_shape_points(x, y, self.mat_width, self.mat_height)
+            if self.is_shape_can_be_added(points=points):
+                self.update_field(points=points)
+                # self.direction_y = self.BACKWARD if self.is_forward_y else self.FORWARD
                 self.current_direction = self.HORIZONTAL
-                if flip_x == -1:
-                    self.direction_x = self.BACKWARD
-                    self.update_field(
-                        x - self.mat_width, y, self.mat_width, self.mat_height
-                    )
-                else:
-                    self.direction_x = self.FORWARD
-                    self.update_field(x, y, self.mat_width, self.mat_height)
+
                 logger.info("Add mat")
-                yield mat
+                yield Mat(points=points)
                 continue
 
-            wire = Wire(
-                points=[
-                    Point(x, y),
-                    Point(x + self.wire_width, y),
-                    Point(x + self.wire_width, y + self.wire_height),
-                    Point(x, y + self.wire_height),
-                ]
-            )
             # Otherwise try to insert a wire
-            if self.is_shape_can_be_added(shape=wire):
-                self.update_field(x, y, self.wire_width, self.wire_height)
-                self.current_direction = self.VERTICAL
+            points = self.get_shape_points(x, y, self.wire_width, self.wire_height)
+            if self.is_shape_can_be_added(points=points):
+                self.update_field(points=points)
                 self.direction_x = self.BACKWARD if self.is_forward_x else self.FORWARD
+                self.current_direction = self.VERTICAL
+
                 logger.info("Add wire")
-                yield wire
+                yield Wire(points=points)
                 continue

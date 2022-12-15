@@ -1,4 +1,5 @@
 import tkinter as tk
+from typing import Any
 
 from shapely.geometry import Point
 
@@ -15,35 +16,10 @@ class App:
     precision = 1
 
     def __init__(self, points: list[Point], socket: Point) -> None:
-        self.root = None
-        self.window = None
         self.canvas = None
         self.room = None
         self.result = None
 
-        self.coords_label = None
-        self.redraw_button = None
-        self.wire_width_input = None
-        self.wire_height_input = None
-        self.mat_width_input = None
-        self.mat_height_input = None
-        self.precision_input = None
-        self.reverse_x = None
-        self.reverse_x_choice = None
-        self.reverse_y = None
-        self.reverse_y_choice = None
-        self.result_label = None
-
-        self.points = points
-        self.socket = socket
-
-        self.create_window()
-        self.draw_room()
-
-        if self.window is not None:
-            self.window.mainloop()
-
-    def create_window(self):
         self.root = tk.Tk()
         self.root.title("Canvas")
         self.root.geometry("800x750")
@@ -95,30 +71,50 @@ class App:
         self.reverse_x = tk.BooleanVar()
         self.reverse_x_choice = tk.Checkbutton(
             self.window,
-            text="Reverse X (Not implemented)",
+            text="Reverse X",
             variable=self.reverse_x,
             onvalue=True,
             offvalue=False,
-            state="disabled",
         )
-        self.reverse_x_choice.grid(row=4, column=2, sticky=tk.W, padx=0, pady=2)
+        self.reverse_x_choice.grid(row=4, column=1, sticky=tk.W, padx=0, pady=2)
 
         self.reverse_y = tk.BooleanVar()
         self.reverse_y_choice = tk.Checkbutton(
             self.window,
-            text="Reverse Y (Not implemented)",
+            text="Reverse Y",
             variable=self.reverse_y,
             onvalue=True,
             offvalue=False,
-            state="disabled",
         )
-        self.reverse_y_choice.grid(row=4, column=3, sticky=tk.W, padx=0, pady=2)
+        self.reverse_y_choice.grid(row=4, column=2, sticky=tk.W, padx=0, pady=2)
+
+        self.prioritize_y = tk.BooleanVar()
+        self.reverse_x_choice = tk.Checkbutton(
+            self.window,
+            text="Prioritize Y",
+            variable=self.prioritize_y,
+            onvalue=True,
+            offvalue=False,
+        )
+        self.reverse_x_choice.grid(row=4, column=3, sticky=tk.W, padx=0, pady=2)
 
         self.redraw_button = tk.Button(self.window, text="Calculate", command=self.draw)
         self.redraw_button.grid(row=5, column=0, sticky=tk.W, padx=0, pady=5)
 
         self.result_label = tk.Label(self.window, text="")
         self.result_label.grid(row=5, column=1, sticky=tk.W, padx=2, pady=5)
+
+        self.points = points
+        self.socket = socket
+
+        self.draw_room()
+
+        # Pre-generate a field
+        params = self.get_params()
+        self.field = Generator(**params).field
+
+        if self.window is not None:
+            self.window.mainloop()
 
     def draw(self):
         self.canvas.delete("all")
@@ -140,21 +136,26 @@ class App:
             fill="red",
         )
 
+    def get_params(self) -> dict[str, Any]:
+        return {
+            "socket": self.socket,
+            "points": self.points,
+            "mat_width": int(self.mat_width_input.get()),
+            "mat_height": int(self.mat_height_input.get()),
+            "wire_width": int(self.wire_width_input.get()),
+            "wire_height": int(self.wire_height_input.get()),
+            "precision": int(self.precision_input.get()),
+            "reverse_x": bool(self.reverse_x.get()),
+            "reverse_y": bool(self.reverse_y.get()),
+            "prioritize_y": bool(self.prioritize_y.get()),
+        }
+
     def draw_tiles(self):
-        field = None
         total_area = 0
         total_length = 0
+        field = self.field
         for _ in range(3):  # Up to 3 mats per room
-            generator = Generator(
-                socket=self.socket,
-                points=self.points,
-                mat_width=int(self.mat_width_input.get()),
-                mat_height=int(self.mat_height_input.get()),
-                wire_width=int(self.wire_width_input.get()),
-                wire_height=int(self.wire_height_input.get()),
-                precision=int(self.precision_input.get()),
-                field=field,
-            )
+            generator = Generator(**self.get_params(), field=field)
             for shape in generator.calculate():
                 shape.draw(canvas=self.canvas)
                 self.window.update()
