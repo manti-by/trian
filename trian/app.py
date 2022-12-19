@@ -109,10 +109,6 @@ class App:
 
         self.draw_room()
 
-        # Pre-generate a field
-        params = self.get_params()
-        self.field = Generator(**params).field
-
         if self.window is not None:
             self.window.mainloop()
 
@@ -153,14 +149,19 @@ class App:
     def draw_tiles(self):
         total_area = 0
         total_length = 0
-        field = self.field
-        for _ in range(3):  # Up to 3 mats per room
+        field = None
+        for i in range(3):  # Up to 3 mats per room
+            self.result_label.config(text=f"Processing {i + 1}th cycle")
+            self.window.update()
+
             generator = Generator(**self.get_params(), field=field)
             for shape in generator.calculate():
                 shape.draw(canvas=self.canvas)
                 self.window.update()
+
                 total_area += shape.area
                 total_length += int(shape.length)
+
             field = generator.field
 
         ratio = total_area / self.room.area * 100
