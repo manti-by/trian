@@ -29,6 +29,7 @@ class Generator:
         mat_height: int,
         wire_width: int,
         wire_height: int,
+        mat_fill: str,
         precision: int,
         reverse_x: bool,
         reverse_y: bool,
@@ -42,6 +43,7 @@ class Generator:
 
         self.mat_height = mat_height
         self.mat_width = mat_width
+        self.mat_fill = mat_fill
         self.wire_width = wire_width
         self.wire_height = wire_height
         self.precision = precision
@@ -134,7 +136,7 @@ class Generator:
         min_x, max_x, min_y, max_y = self.get_points_bounds(points=points)
         for r_x in range(min_x, max_x):
             for r_y in range(min_y, max_y):
-                if self.field[r_x][r_y] is True or not self.polygon.contains(Point(r_x, r_y)):
+                if self.field[r_x][r_y] or not self.polygon.contains(Point(r_x, r_y)):
                     return False
         return True
 
@@ -148,23 +150,46 @@ class Generator:
     def choose_next_x(self) -> int:
         """Horizontal direction rules."""
         if self.is_forward_x:  # Forward
-            # Check room bounds (fast)
             # Then try to restrict moving outside the room
-            if self.prev_x <= self.max_x - self.precision:
+            if (
+                self.prev_x <= self.max_x - self.precision
+                and self.polygon.contains(Point(self.prev_x + self.precision, self.prev_y))
+            ):
                 self.prev_x += self.precision
+            else:
+                self.direction_x = self.BACKWARD
+                # self.prev_y += 1 if self.is_forward_y else -1
         else:  # Backward
-            if self.prev_x >= self.min_x + self.precision:
+            if (
+                self.prev_x >= self.min_x + self.precision
+                and self.polygon.contains(Point(self.prev_x - self.precision, self.prev_y))
+            ):
                 self.prev_x -= self.precision
+            else:
+                self.direction_x = self.FORWARD
+                # self.prev_y += 1 if self.is_forward_y else -1
         return self.prev_x
 
     def choose_next_y(self):
         """Vertical direction rules."""
         if self.is_forward_y:
-            if self.prev_y <= self.max_y - self.precision:
+            if (
+                self.prev_y <= self.max_y - self.precision
+                and self.polygon.contains(Point(self.prev_x, self.prev_y + self.precision))
+            ):
                 self.prev_y += self.precision
+            else:
+                self.direction_y = self.BACKWARD
+                # self.prev_x += 1 if self.is_forward_x else -1
         else:
-            if self.prev_y >= self.min_y + self.precision:
+            if (
+                self.prev_y >= self.min_y + self.precision
+                and self.polygon.contains(Point(self.prev_x, self.prev_y - self.precision))
+            ):
                 self.prev_y -= self.precision
+            else:
+                self.direction_y = self.FORWARD
+                # self.prev_x += 1 if self.is_forward_x else -1
         return self.prev_y
 
     def choose_next_position(self) -> tuple[int, int]:
@@ -176,22 +201,22 @@ class Generator:
 
             # Chose direction using start point neighbors statuses
             statuses = self.get_point_neighbors_statuses(point)
-            if statuses[0] is True:
-                self.direction_x, self.direction_y = self.FORWARD, self.BACKWARD
-                self.prev_x += 1
-                self.prev_x -= 1
-            elif statuses[1] is True:
+            if statuses[1] is False:
                 self.direction_x, self.direction_y = self.FORWARD, self.FORWARD
-                self.prev_x += 1
-                self.prev_x += 1
-            elif statuses[2] is True:
+                self.prev_x += self.precision
+                self.prev_y += self.precision
+            elif statuses[2] is False:
                 self.direction_x, self.direction_y = self.BACKWARD, self.FORWARD
-                self.prev_x -= 1
-                self.prev_x += 1
-            elif statuses[3] is True:
+                self.prev_x -= self.precision
+                self.prev_y += self.precision
+            elif statuses[3] is False:
                 self.direction_x, self.direction_y = self.BACKWARD, self.BACKWARD
-                self.prev_x -= 1
-                self.prev_x -= 1
+                self.prev_x -= self.precision
+                self.prev_y -= self.precision
+            elif statuses[0] is False:
+                self.direction_x, self.direction_y = self.FORWARD, self.BACKWARD
+                self.prev_x += self.precision
+                self.prev_y -= self.precision
 
         if self.is_horizontal_direction:
             self.prev_x = self.choose_next_x()
@@ -243,7 +268,7 @@ class Generator:
                 self.current_direction = self.HORIZONTAL
 
                 logger.info("Add mat")
-                yield Mat(points=points)
+                yield Mat(points=points, fill=self.mat_fill)
                 continue
 
             # Otherwise try to insert a wire

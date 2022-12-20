@@ -8,9 +8,11 @@ class Shape:
     outline = "black"
     width = "2"
 
-    def __init__(self, points: list[Point]):
+    def __init__(self, points: list[Point], fill: str = None):
         self.points = points
         self.polygon = Polygon(points)
+        if fill is not None:
+            self.fill = fill
 
     @property
     def area(self) -> int:

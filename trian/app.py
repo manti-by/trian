@@ -1,3 +1,4 @@
+import random
 import tkinter as tk
 from typing import Any
 
@@ -10,7 +11,7 @@ from trian.generator import Generator
 class App:
 
     wire_width = 4
-    wire_height = 1
+    wire_height = 4
     mat_width = 10
     mat_height = 50
     precision = 1
@@ -138,6 +139,7 @@ class App:
             "points": self.points,
             "mat_width": int(self.mat_width_input.get()),
             "mat_height": int(self.mat_height_input.get()),
+            "mat_fill": random.choice(("green", "blue", "yellow")),
             "wire_width": int(self.wire_width_input.get()),
             "wire_height": int(self.wire_height_input.get()),
             "precision": int(self.precision_input.get()),
