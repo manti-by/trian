@@ -69,35 +69,15 @@ class App:
         self.precision_input.insert(0, str(self.precision))
         self.precision_input.grid(row=4, column=0, sticky=tk.W, padx=2, pady=2)
 
-        self.reverse_x = tk.BooleanVar()
-        self.reverse_x_choice = tk.Checkbutton(
+        self.flip_xy = tk.BooleanVar()
+        self.flip_xy_choice = tk.Checkbutton(
             self.window,
-            text="Reverse X",
-            variable=self.reverse_x,
+            text="Flip XY",
+            variable=self.flip_xy,
             onvalue=True,
             offvalue=False,
         )
-        self.reverse_x_choice.grid(row=4, column=1, sticky=tk.W, padx=0, pady=2)
-
-        self.reverse_y = tk.BooleanVar()
-        self.reverse_y_choice = tk.Checkbutton(
-            self.window,
-            text="Reverse Y",
-            variable=self.reverse_y,
-            onvalue=True,
-            offvalue=False,
-        )
-        self.reverse_y_choice.grid(row=4, column=2, sticky=tk.W, padx=0, pady=2)
-
-        self.prioritize_y = tk.BooleanVar()
-        self.reverse_x_choice = tk.Checkbutton(
-            self.window,
-            text="Prioritize Y",
-            variable=self.prioritize_y,
-            onvalue=True,
-            offvalue=False,
-        )
-        self.reverse_x_choice.grid(row=4, column=3, sticky=tk.W, padx=0, pady=2)
+        self.flip_xy_choice.grid(row=4, column=1, sticky=tk.W, padx=0, pady=2)
 
         self.redraw_button = tk.Button(self.window, text="Calculate", command=self.draw)
         self.redraw_button.grid(row=5, column=0, sticky=tk.W, padx=0, pady=5)
@@ -143,9 +123,7 @@ class App:
             "wire_width": int(self.wire_width_input.get()),
             "wire_height": int(self.wire_height_input.get()),
             "precision": int(self.precision_input.get()),
-            "reverse_x": bool(self.reverse_x.get()),
-            "reverse_y": bool(self.reverse_y.get()),
-            "prioritize_y": bool(self.prioritize_y.get()),
+            "flip_xy": bool(self.flip_xy.get()),
         }
 
     def draw_tiles(self):

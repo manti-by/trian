@@ -31,9 +31,7 @@ class Generator:
         wire_height: int,
         mat_fill: str,
         precision: int,
-        reverse_x: bool,
-        reverse_y: bool,
-        prioritize_y: bool,
+        flip_xy: bool,
         field: dict[int, dict[int, bool]] = None,
     ):
         """Init the class with values from the UI."""
@@ -55,9 +53,7 @@ class Generator:
         self.field = field if field else defaultdict(lambda: defaultdict(partial(bool, False)))
 
         self.prev_x, self.prev_y = None, None
-        self.direction_x = self.BACKWARD if reverse_x else self.FORWARD
-        self.direction_y = self.BACKWARD if reverse_y else self.FORWARD
-        self.current_direction = self.VERTICAL if prioritize_y else self.HORIZONTAL
+        self.current_direction = self.VERTICAL if flip_xy else self.HORIZONTAL
 
     @property
     def is_horizontal_direction(self) -> bool:
@@ -158,7 +154,7 @@ class Generator:
                 self.prev_x += self.precision
             else:
                 self.direction_x = self.BACKWARD
-                # self.prev_y += 1 if self.is_forward_y else -1
+                self.prev_y += 1 if self.is_forward_y else -1
         else:  # Backward
             if (
                 self.prev_x >= self.min_x + self.precision
@@ -167,7 +163,7 @@ class Generator:
                 self.prev_x -= self.precision
             else:
                 self.direction_x = self.FORWARD
-                # self.prev_y += 1 if self.is_forward_y else -1
+                self.prev_y += 1 if self.is_forward_y else -1
         return self.prev_x
 
     def choose_next_y(self):
@@ -180,7 +176,7 @@ class Generator:
                 self.prev_y += self.precision
             else:
                 self.direction_y = self.BACKWARD
-                # self.prev_x += 1 if self.is_forward_x else -1
+                self.prev_x += 1 if self.is_forward_x else -1
         else:
             if (
                 self.prev_y >= self.min_y + self.precision
@@ -189,7 +185,7 @@ class Generator:
                 self.prev_y -= self.precision
             else:
                 self.direction_y = self.FORWARD
-                # self.prev_x += 1 if self.is_forward_x else -1
+                self.prev_x += 1 if self.is_forward_x else -1
         return self.prev_y
 
     def choose_next_position(self) -> tuple[int, int]:
@@ -265,7 +261,7 @@ class Generator:
             points = self.get_shape_points(x, y, self.mat_width, self.mat_height)
             if self.is_shape_can_be_added(points=points):
                 self.update_field(points=points)
-                self.current_direction = self.HORIZONTAL
+                # self.current_direction = self.HORIZONTAL
 
                 logger.info("Add mat")
                 yield Mat(points=points, fill=self.mat_fill)
@@ -275,8 +271,8 @@ class Generator:
             points = self.get_shape_points(x, y, self.wire_width, self.wire_height)
             if self.is_shape_can_be_added(points=points):
                 self.update_field(points=points)
-                self.direction_x = self.BACKWARD if self.is_forward_x else self.FORWARD
-                self.current_direction = self.VERTICAL
+                # self.direction_x = self.BACKWARD if self.is_forward_x else self.FORWARD
+                # self.current_direction = self.VERTICAL
 
                 logger.info("Add wire")
                 yield Wire(points=points)
