@@ -1,2 +1,5 @@
 check:
 	black .
+
+test:
+	pytest .

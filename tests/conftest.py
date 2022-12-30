@@ -1,14 +1,12 @@
-import logging
+from typing import Any
 
+import pytest
 from shapely.geometry import Point
 
-from trian.app import App
 
-logging.basicConfig(level=logging.INFO)
-
-
-if __name__ == "__main__":
-    """All sizes in centimeters."""
+@pytest.fixture
+def base_params() -> dict[str, Any]:
+    socket = Point(370, 110)
     shell = [
         Point(370, 60),
         Point(670, 60),
@@ -26,11 +24,19 @@ if __name__ == "__main__":
             Point(420, 510),
         ],
         [
-            Point(420, 290),
+            Point(420, 250),
             Point(420, 350),
             Point(620, 350),
-            Point(620, 290),
+            Point(620, 250),
         ],
     ]
-    socket = Point(270, 220)
-    app = App(shell=shell, holes=holes, socket=socket)
+    return {
+        "socket": socket,
+        "shell": shell,
+        "holes": holes,
+        "wire_radius": 8,
+        "mat_width": 55,
+        "mat_fill": "green",
+        "precision": 1,
+        "flip_xy": False,
+    }
